@@ -8,12 +8,31 @@ YELLOW = Color.YELLOW.value
 RED = Color.RED.value
 GREEN = Color.GREEN.value
 
+PIECE_TABLE = [
+    [Piece.LPentomino, [[0, 3, 24], [0, 3, 21], [0, 21, 24], [3, 21, 24], [0, 1, 63], [0, 63, 64], [0, 1, 64], [1, 63, 64]], 23],
+    [Piece.TPentomino, [[0, 2, 43], [1, 42, 44], [0, 23, 42], [2, 21, 44]], 31],
+    [Piece.ZPentomino, [[0, 21, 23, 44], [2, 21, 23, 42], [1, 2, 42, 43], [0, 1, 43, 44]], 43],
+    [Piece.UPentomino, [[0, 2, 21, 23], [0, 2, 21, 23], [0, 1, 42, 43], [0, 1, 42, 43]], 47],
+    [Piece.FPentomino, [[1, 23, 42, 43], [1, 21, 43, 44], [1, 2, 21, 43], [0, 1, 23, 43], [2, 21, 23, 43], [0, 21, 23, 43], [1, 21, 23, 44], [1, 21, 23, 42]], 51],
+    [Piece.WPentomino, [[0, 21, 22, 43, 44], [2, 22, 23, 42, 43], [0, 1, 22, 23, 44], [1, 2, 21, 22, 42]], 59],
+    [Piece.NPentomino, [[1, 42, 43, 63], [0, 42, 43, 64], [1, 21, 22, 63], [0, 21, 22, 64], [2, 3, 21, 23], [0, 2, 23, 24], [0, 1, 22, 24], [1, 3, 21, 22]], 63],
+    [Piece.VPentomino, [[0, 2, 42], [2, 42, 44], [0, 2, 44], [0, 42, 44]], 71],
+    [Piece.PPentomino, [[0, 1, 22, 42], [0, 1, 21, 43], [0, 1, 21, 23], [0, 2, 21, 22], [0, 2, 22, 23], [1, 2, 21, 23], [1, 21, 42, 43], [0, 22, 42, 43]], 75],
+    [Piece.YPentomino, [[0, 22, 42, 63], [0, 21, 43, 63], [1, 22, 42, 64], [1, 21, 43, 64], [0, 1, 3, 23], [0, 2, 3, 22], [2, 21, 22, 24], [1, 21, 23, 24],], 83],
+    [Piece.TTetromino, [[0, 2, 22], [1, 21, 23], [0, 22, 42], [1, 21, 43]], 35],
+    [Piece.OTetromino, [[0, 1, 21, 22]], 9],
+    [Piece.ZTetromino, [[1, 2, 21, 22], [0, 1, 22, 23], [1, 21, 22, 42], [0, 21, 22, 43]], 39],
+    [Piece.LTetromino, [[0, 1, 42], [0, 1, 43], [1, 43, 42], [0, 42, 43], [0, 21, 23], [0, 2, 21], [0, 2, 23], [2, 21, 23]], 15],
+    [Piece.LTromino, [[0, 21, 22], [0, 1, 21], [0, 1, 22], [1, 21, 22]], 11],
+]
+
 class GameState:
     def __init__(self):
         self.ply = 0
         self.board = [Bitboard() for _ in range(4)]
         self.pieces_left = [[True for _ in range(4)] for _ in range(21)]
         self.monomino_placed_last = [False for _ in range(4)]
+        self.start_piece_type = Piece.random_pentomino()
         self.skipped = 0
         self.current_player = Color.BLUE
 
@@ -33,7 +52,8 @@ class GameState:
         self.current_player = Color.next(self.current_player)
         self.ply += 1
 
-    def get_possible_moves(self, move_list):
+    def get_possible_moves(self):
+        move_list = []
         own_fields = self.board[self.current_player.value]
         other_fields = (self.board[0] | self.board[1] | self.board[2] | self.board[3]) & ~own_fields
         legal_fields = ~(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS
@@ -61,6 +81,7 @@ class GameState:
                         move_list.append(Move(to - 21, Piece.Domino, 2))
                     else:
                         move_list.append(Move(to, Piece.Domino, 2))
+
             if self.pieces_left[Piece.ITromino.value][self.current_player.value]:
                 while three_in_a_row.fields != 0:
                     to = three_in_a_row.trailing_zeros()
@@ -100,6 +121,21 @@ class GameState:
                     else:
                         move_list.append(Move(to, Piece.IPentomino, 8))
 
+        for p in PIECE_TABLE:
+            if self.pieces_left[p[0].value][self.current_player.value]:
+                candidates = placement_fields.copy()
+                while candidates.fields != 0:
+                    to = candidates.trailing_zeros()
+                    candidates.flip_bit(to)
+                    shape_index = p[2]
+                    for offsets in p[1]:
+                        for offset in offsets:
+                            if to >= offset:
+                                piece = Bitboard.with_piece(to - offset, shape_index)
+                                if piece & legal_fields == piece:
+                                    move_list.append(Move(to - offset, p[0], shape_index))
+                        shape_index += 1
+
         if self.pieces_left[Piece.XPentomino.value][self.current_player.value]:
             candidates = with_three_in_a_row.copy()
             while candidates.fields != 0:
@@ -112,6 +148,16 @@ class GameState:
                         if piece & legal_fields == piece:
                             move_list.append(Move(destination, Piece.XPentomino, 10))
 
+        if self.pieces_left[Piece.Monomino.value][self.current_player.value]:
+            while placement_fields.fields != 0:
+                to = placement_fields.trailing_zeros()
+                placement_fields.flip_bit(to)
+                move_list.append(Move(to, Piece.Monomino, 0))
+
+        if self.ply < 4:
+            return [move for move in move_list if move.piece_type == self.start_piece_type]
+        return move_list
+            
     def is_game_over(self):
         return self.skipped == 15 or self.ply / 4 == 26
 
@@ -174,12 +220,9 @@ class GameState:
         return string
 
 from random import choice
-gs = (GameState.from_fen("20 32768 15950743555472498867215306974539284496 1298074833604611993819774835491712 83076749736557242056487941267521536 17179881472 1993842300686507093905443867859091584 41538513517600800102841821851287552 0 0 0 62914569 170143901305290402726619173899970019335 0 0 155648 38547617899104724787858147799116677120 16874964943690196498745885797924848"))
-for _ in range(30):
-    move_list = []
-    gs.get_possible_moves(move_list)
-    print(gs)
-    print(move_list)
-    gs.do_move(None if len(move_list) == 0 else choice(move_list))
-    print(gs)
-    print(gs.skipped)
+state = GameState()
+while not state.is_game_over():
+    move_list = state.get_possible_moves()
+    state.do_move(None if len(move_list) == 0 else choice(move_list))
+    print(state)
+print(state.game_result())
