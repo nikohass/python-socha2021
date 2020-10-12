@@ -27,25 +27,13 @@ class Bitboard:
 
     @staticmethod
     def with_piece(to, shape_index):
-        piece_shape = PIECE_SHAPES[shape_index]
-        return Bitboard(fields=piece_shape << to)
+        return Bitboard(fields=PIECE_SHAPES[shape_index] << to)
     
     def neighbours(self):
         return (self << 1 | self >> 1 | self >> 21 | self << 21) & VALID_FIELDS
 
     def diagonal_neighbours(self):
         return (self << 22 | self >> 22 | self >> 20 | self << 20) & VALID_FIELDS
-
-    def neighbours_in_direction(self, d):
-        if d == "UP":
-            return Bitboard(self.fields << 21) & VALID_FIELDS
-        if d == "DOWN":
-            return Bitboard(self.fields >> 21) & VALID_FIELDS
-        if d == "LEFT":
-            return Bitboard(self.fields << 1) & VALID_FIELDS
-        if d == "RIGHT":
-            return Bitboard(self.fields >> 1) & VALID_FIELDS
-        raise
 
     def __invert__(self):
         return Bitboard(self.fields ^ 13407807929942597099574024998205846127479365820592393377723561443721764030073546976801874298166903427690031858186486050853753882811946569946433649006084095)
@@ -69,7 +57,6 @@ class Bitboard:
         string = bin(self.fields)[2:]
         string = "0" * (420-len(string)) + string
         st = ""
-
         for i in range(20):
             st += (string[i*21:(i+1)*21])[::-1] + "\n"
         return st
@@ -175,34 +162,3 @@ PIECE_SHAPES = [
     31457284,
     31457282
 ]
-DIRECTIONS = ["UP", "DOWN", "LEFT", "RIGHT"]
-
-def mirror(d):
-    if d == "UP":
-        return "DOWN"
-    if d == "DOWN":
-        return "UP"
-    if d == "LEFT":
-        return "RIGHT"
-    if d == "RIGHT":
-        return "LEFT"
-
-def anticlockwise(d):
-    if d == "LEFT":
-        return "DOWN"
-    if d == "UP":
-        return "LEFT"
-    if d == "RIGHT":
-        return "UP"
-    if d == "DOWN":
-        return "RIGHT"
-
-def clockwise(d):
-    if d == "LEFT":
-        return "UP"
-    if d == "UP":
-        return "RIGHT"
-    if d == "RIGHT":
-        return "DOWN"
-    if d == "DOWN":
-        return "LEFT"
