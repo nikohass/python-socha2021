@@ -60,17 +60,16 @@ class GameState:
         return move_list if len(move_list) != 0 else [None]
 
     def is_game_over(self):
-        return self.skipped == 15 or self.ply / 4 == 26
+        return self.skipped == 15 or int(self.ply / 4) >= 26
 
     def game_result(self):
         scores = [self.board[color].count_ones() for color in range(4)]
         for color in range(4):
             if scores[color] == 89:
-                if self.monomino_placed_last[color]:
-                    scores[color] += 20
-                else:
-                    scores[color] += 15
-        return scores[0] + scores[1] - scores[2] - scores[3]
+                scores[color] += 15
+            if self.monomino_placed_last[color]:
+                scores[i] += 5
+        return scores[0] + scores[2] - scores[1] - scores[3]
 
     def int_to_piece_info(self, info):
         self.skipped = info >> 120
@@ -97,21 +96,15 @@ class GameState:
     def __repr__(self):
         string = "╔" + "═" * 40 + "╗\n" + f"║ {self.current_player} Turn: {self.ply} Round: {int(self.ply/4)}"
         string += " " * (84 - len(string)) + "║\n" + "╠" + "═" * 40 + "╣"
-        for i in range(20):
+        for y in range(20):
             string += "\n║"
-            for j in range(20):
-                y = 19 - i
-                x = j
+            for x in range(20):
                 field_index = x + y * 21
                 bit = 1 << field_index
-                if self.board[0].fields & bit != 0:
-                    string += "🟦"
-                elif self.board[1].fields & bit != 0:
-                    string += "🟨"
-                elif self.board[2].fields & bit != 0:
-                    string += "🟥"
-                elif self.board[3].fields & bit != 0:
-                    string += "🟩"
+                for i in range(4):
+                    if self.board[i].fields & bit != 0:
+                        string += ["🟦", "🟨", "🟥", "🟩"][i]
+                        break
                 else:
                     string += "▪ "
             string += "║"
