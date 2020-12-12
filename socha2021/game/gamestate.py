@@ -6,7 +6,7 @@ class GameState:
         self.ply = self.skipped = 0
         self.board = [Bitboard() for _ in range(4)]
         self.start_piece_type = Piece.random_pentomino()
-        self.pieces_left = [[True for _ in range(4)] for _ in range(21)]
+        self.pieces_left = [[True] * 4 for _ in range(21)]
         self.monomino_placed_last = [False for _ in range(4)]
         self.current_player = Color.BLUE
 
@@ -25,12 +25,24 @@ class GameState:
         self.current_player = Color.next(self.current_player)
         self.ply += 1
 
+    def undo_move(self, move):
+        self.ply -= 1
+        self.current_player = Color.previous(self.current_player)
+        if move == None:
+            self.skipped &= ~(1 << self.current_player.value)
+            return
+        current_player = self.current_player.value
+        piece = Bitboard.with_piece(move.to, move.piece_shape)
+        self.pieces_left[move.piece_type.value][current_player] = True
+        self.board[current_player] ^= piece
+
     def get_possible_moves(self):
         move_list = []
         own_fields = self.board[self.current_player.value]
         other_fields = (self.board[0] | self.board[1] | self.board[2] | self.board[3]) & ~own_fields
         legal_fields = ~(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS
-        placement_fields = own_fields.diagonal_neighbours() & legal_fields if self.ply > 3 else START_FIELDS & ~other_fields
+        placement_fields = own_fields.diagonal_neighbours() & legal_fields if self.ply > 3 \
+                           else START_FIELDS & ~other_fields
         assert own_fields & VALID_FIELDS == own_fields
         assert other_fields & VALID_FIELDS == other_fields
 
@@ -60,7 +72,7 @@ class GameState:
         return move_list if len(move_list) != 0 else [None]
 
     def is_game_over(self):
-        return self.skipped == 15 or int(self.ply / 4) >= 26
+        return self.skipped == 15 or self.ply // 4 >= 26
 
     def game_result(self):
         scores = [self.board[color].count_ones() for color in range(4)]
@@ -68,7 +80,7 @@ class GameState:
             if scores[color] == 89:
                 scores[color] += 15
             if self.monomino_placed_last[color]:
-                scores[i] += 5
+                scores[color] += 5
         return scores[0] + scores[2] - scores[1] - scores[3]
 
     def int_to_piece_info(self, info):
@@ -80,18 +92,37 @@ class GameState:
         start_piece_index = info >> 110 & 31
         self.start_piece_type = PIECE_TYPES[start_piece_index]
 
+    def piece_info_to_int(self):
+        info = 0
+        for player_index in range(4):
+            if self.monomino_placed_last[player_index]:
+                info |= 1 << player_index
+            for i in range(21):
+                if self.pieces_left[i][player_index]:
+                    info |= 1 << (i + 21 * player_index + 4)
+        info |= self.start_piece_type.value << 110
+        return info | self.skipped << 120
+
     @staticmethod
     def from_fen(fen):
         state = GameState()
         entries = [int(entry) for entry in fen.split(" ")]
-        assert len(entries) == 18
+        assert len(entries) >= 18
         state.ply = entries[0]
         for b in range(4):
-            state.board[b].fields = entries[b * 4 + 1] << 384 | entries[b * 4 + 2] << 256 | entries[b * 4 + 3] << 128 | entries[b * 4 + 4]
+            state.board[b].fields = entries[b * 4 + 1] << 384 | entries[b * 4 + 2] << 256 \
+                                    | entries[b * 4 + 3] << 128 | entries[b * 4 + 4]
         state.current_player = Color.BLUE if state.ply % 4 == 0 else Color.YELLOW if state.ply % 4 == 1 else \
                                Color.RED if state.ply % 4 == 2 else Color.GREEN
         state.int_to_piece_info(entries[-1])
         return state
+
+    def to_fen(self):
+        fen = f"{self.ply} "
+        for board_index in range(4):
+            for part in self.board[0].to_parts():
+                fen += f"{part} "
+        return fen + str(self.piece_info_to_int())
 
     def __repr__(self):
         string = "╔" + "═" * 40 + "╗\n" + f"║ {self.current_player} Turn: {self.ply} Round: {int(self.ply/4)}"

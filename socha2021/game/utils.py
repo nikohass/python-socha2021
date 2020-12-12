@@ -7,8 +7,45 @@ class Move:
         self.to = to
         self.piece_shape = piece_shape
 
+    def serialize(move):
+        if move == None:
+            return "Skip"
+        for i, pi in enumerate(PIECE_TYPES):
+            if pi == move.piece_type:
+                piece_index = i
+        return f"{move.to} {piece_index} {move.piece_shape}"
+
+    @staticmethod
+    def deserialize(entries):
+        if entries[0] == "Skip":
+            return None
+        entries = [int(e) for e in entries]
+        piece_shape = entries.pop()
+        piece_type = PIECE_TYPES[entries.pop()]
+        to = entries.pop()
+        return Move(to, piece_type, piece_shape)
+
+    @staticmethod
+    def from_bitboard(board):
+        original_board = Bitboard(board.fields)
+        left = 21
+        top = 21
+        while board.fields != 0:
+            field_index = board.trailing_zeros()
+            board.flip_bit(field_index)
+            x = field_index % 21
+            y = (field_index - x) // 21
+            if y < top:
+                top = y
+            if x < left:
+                left = x
+        to = left + top * 21
+        for shape_index in range(91):
+            if Bitboard.with_piece(to, shape_index) == original_board:
+                return Move(to, None, shape_index)
+    
     def __repr__(self):
-        return f"Set {repr(self.piece_type)} to {self.to} (Shape {self.piece_shape})"
+        return f"Set {repr(self.piece_type)} to {self.to} (X={self.to % 21} Y={(self.to - (self.to % 21)) // 21} Shape={self.piece_shape})"
 
 class Color(Enum):
     BLUE = 0
@@ -93,7 +130,7 @@ PIECE_TYPES = [
 
 PIECE_TABLE = [
     [Piece.FPentomino, [[1, 23, 42, 43], [1, 21, 43, 44], [1, 2, 21, 43], [0, 1, 23, 43], [2, 21, 23, 43], [0, 21, 23, 43], [1, 21, 23, 44], [1, 21, 23, 42]], 51],
-    [Piece.YPentomino, [[0, 22, 42, 63], [0, 21, 43, 63], [1, 22, 42, 64], [1, 21, 43, 64], [0, 1, 3, 23], [0, 2, 3, 22], [2, 21, 22, 24], [1, 21, 23, 24],], 83],
+    [Piece.YPentomino, [[0, 22, 42, 63], [0, 21, 43, 63], [1, 22, 42, 64], [1, 21, 43, 64], [0, 1, 3, 23], [0, 2, 3, 22], [2, 21, 22, 24], [1, 21, 23, 24]], 83],
     [Piece.NPentomino, [[1, 42, 43, 63], [0, 42, 43, 64], [1, 21, 22, 63], [0, 21, 22, 64], [2, 3, 21, 23], [0, 2, 23, 24], [0, 1, 22, 24], [1, 3, 21, 22]], 63],
     [Piece.PPentomino, [[0, 1, 22, 42], [0, 1, 21, 43], [0, 1, 21, 23], [0, 2, 21, 22], [0, 2, 22, 23], [1, 2, 21, 23], [1, 21, 42, 43], [0, 22, 42, 43]], 75],
     [Piece.LPentomino, [[0, 3, 24], [0, 3, 21], [0, 21, 24], [3, 21, 24], [0, 1, 63], [0, 63, 64], [0, 1, 64], [1, 63, 64]], 23],

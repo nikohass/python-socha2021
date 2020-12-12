@@ -6,6 +6,21 @@ class Bitboard:
     def flip_bit(self, bit_idx):
         self.fields ^= 1 << bit_idx
 
+    def check_bit(self, bit_idx):
+        return self.fields & (1 << bit_idx) != 0
+
+    def print_parts(self):
+        print("one  ", self.fields >> 384 & 340282366920938463463374607431768211455)
+        print("two  ", self.fields >> 256 & 340282366920938463463374607431768211455)
+        print("three", self.fields >> 128 & 340282366920938463463374607431768211455)
+        print("four ", self.fields & 340282366920938463463374607431768211455)
+
+    def to_parts(self):
+        return (self.fields >> 384 & 340282366920938463463374607431768211455,
+            self.fields >> 256 & 340282366920938463463374607431768211455,
+            self.fields >> 128 & 340282366920938463463374607431768211455,
+            self.fields & 340282366920938463463374607431768211455)
+
     def count_ones(self):
         ones = 0
         board_copy = self.fields
@@ -25,10 +40,40 @@ class Bitboard:
             bit <<= 1
         return 512
 
+    def flip(self):
+        board = Bitboard()
+        for row in range(20):
+            board |= (self >> (21 * row) & ROW_MASK) << ((19 - row) * 21)
+        return board
+
+    def mirror(self):
+        board = Bitboard()
+        for col in range(20):
+            board |= ((self >> col) & COLUMN_MASK) << (19 - col)
+        return board
+
+    def mirror_diagonal(self):
+        board = Bitboard()
+        for x in range(20):
+            for y in range(20):
+                if self.check_bit(x + y * 21):
+                    board.flip_bit(y + x * 21)
+        return board
+
+    def rotate_left(self):
+        return self.mirror_diagonal().flip()
+
+    def rotate_right(self):
+        return self.mirror_diagonal().mirror()
+
     @staticmethod
     def with_piece(to, shape_index):
         return Bitboard(fields=PIECE_SHAPES[shape_index] << to)
-    
+
+    @staticmethod
+    def from_parts(one, two, three, four):
+        return Bitboard(one << 384 | two << 256 | three << 128 | four)
+
     def neighbours(self):
         return (self << 1 | self >> 1 | self >> 21 | self << 21) & VALID_FIELDS
 
@@ -55,11 +100,11 @@ class Bitboard:
 
     def __repr__(self):
         string = bin(self.fields)[2:]
-        string = "0" * (420-len(string)) + string
+        string = "." * (420-len(string)) + string
         st = ""
         for i in range(20):
-            st += (string[i*21:(i+1)*21])[::-1] + "\n"
-        return st
+            st += (string[i*21:(i+1)*21])[::-1][:-1] + "\n"
+        return st.replace("0", ".")
 
     def __eq__(self, other):
         return self.fields == other.fields
@@ -69,6 +114,13 @@ class Bitboard:
 
 VALID_FIELDS = Bitboard(fields=1353841978519651780606181823587055014201997103708438138826768745134664492555299896889475908923884339705591950360690671800549375)
 START_FIELDS = Bitboard(fields=1 << 418 | 1 << 399 | 1 | 1 << 19)
+ROW_MASK = Bitboard(1048575)
+COLUMN_MASK = Bitboard.from_parts(
+    32768,
+    5316914518442072874470106890883956736,
+    21267658073768291497880427563535826944,
+    85070632295073165991521710254143307777
+)
 PIECE_SHAPES = [
     1,                          # Monomino
     3,                          # Domino horizontal
