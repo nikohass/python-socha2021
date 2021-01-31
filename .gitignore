@@ -1,5 +1,8 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+socha2021/checkpoints
+socha2021/datasets
+socha2021/tests
 *.py[cod]
 *$py.class
 
