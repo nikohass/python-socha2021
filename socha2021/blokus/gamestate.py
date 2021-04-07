@@ -18,13 +18,11 @@ class GameState:
 
     def do_action(self, action):
         if action == None:
-            self.current_color = self.current_color.next()
-            self.ply += 1
             self.skipped = ((self.skipped & 0b1111) | self.skipped << 4) | (1 << self.current_color.value)
-            return
-        self.pieces_left[action.piece_type.value][self.current_color.value] = False
-        self.board[self.current_color.value] ^= Bitboard.with_piece(action.to, action.shape)
-        self.monomino_placed_last[self.current_color.value] = action.piece_type == PieceType.Monomino
+        else:
+            self.pieces_left[action.piece_type.value][self.current_color.value] = False
+            self.board[self.current_color.value] ^= Bitboard.with_piece(action.destination, action.shape)
+            self.monomino_placed_last[self.current_color.value] = action.piece_type == PieceType.Monomino
         self.current_color = self.current_color.next()
         self.ply += 1
 
@@ -33,46 +31,48 @@ class GameState:
         self.current_color = self.current_color.previous()
         if action == None:
             self.skipped >>= 4
-            return
-        piece = Bitboard.with_piece(action.to, action.shape)
-        self.pieces_left[action.piece_type.value][self.current_color.value] = True
-        self.board[self.current_color.value] ^= piece
+        else:
+            piece = Bitboard.with_piece(action.destination, action.shape)
+            self.pieces_left[action.piece_type.value][self.current_color.value] = True
+            self.board[self.current_color.value] ^= piece
 
     def get_occupied_fields(self):
         return self.board[0] | self.board[1] | self.board[2] | self.board[3]
 
     def get_possible_actions(self):
-        action_list = []
+        possible_actions = []
         own_fields = self.board[self.current_color.value]
         other_fields = self.get_occupied_fields() & ~own_fields
         legal_fields = ~(own_fields | other_fields | own_fields.neighbours()) & VALID_FIELDS
-        placement_fields = own_fields.diagonal_neighbours() & \
-            legal_fields if self.ply > 3 else START_FIELDS & ~other_fields
+        if self.ply > 3:
+            placement_fields = own_fields.diagonal_neighbours() & legal_fields
+        else:
+            placement_fields = START_FIELDS & ~other_fields
 
-        for p in PIECE_TABLE:
-            if self.pieces_left[p[0].value][self.current_color.value]:
-                candidates = placement_fields.clone()
-                while candidates.fields != 0:
-                    to = candidates.trailing_zeros()
-                    candidates.flip_bit(to)
-                    shape = p[2]
-                    for offsets in p[1]:
-                        for offset in offsets:
-                            if to >= offset:
-                                piece = Bitboard.with_piece(to - offset, shape)
-                                if piece & legal_fields == piece:
-                                    action_list.append(Action(to - offset, shape))
-                        shape += 1
+        for piece_type in PIECE_TABLE:
+            if not self.pieces_left[piece_type[0].value][self.current_color.value]:
+                continue
+            candidates = placement_fields.clone()
+            for candidate_field in candidates:
+                shape = piece_type[2]
+                for offsets in piece_type[1]:
+                    for offset in offsets:
+                        if candidate_field >= offset:
+                            destination = candidate_field - offset
+                            piece = Bitboard.with_piece(destination, shape)
+                            if piece & legal_fields == piece:
+                                possible_actions.append(Action(destination, shape))
+                    shape += 1
 
         if self.pieces_left[PieceType.Monomino.value][self.current_color.value]:
-            while placement_fields.fields != 0:
-                to = placement_fields.trailing_zeros()
-                placement_fields.flip_bit(to)
-                action_list.append(Action(to, 0))
+            for destination in placement_fields:
+                possible_actions.append(Action(destination, 0))
 
         if self.ply < 4:
-            action_list = [action for action in action_list if action.piece_type == self.start_piece_type]
-        return action_list if len(action_list) != 0 else [None]
+            return [action for action in possible_actions if action.piece_type == self.start_piece_type]
+        if len(possible_actions) != 0:
+            return possible_actions
+        return [None]
 
     def is_game_over(self):
         return self.skipped & 0b1111 == 0b1111 or self.ply > 100
@@ -82,8 +82,8 @@ class GameState:
         for color in range(4):
             if scores[color] == 89:
                 scores[color] += 15
-            if self.monomino_placed_last[color]:
-                scores[color] += 5
+                if self.monomino_placed_last[color]:
+                    scores[color] += 5
         return scores[0] + scores[2] - scores[1] - scores[3]
 
     def load_fen(self, fen):

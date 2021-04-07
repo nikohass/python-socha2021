@@ -65,8 +65,8 @@ class Bitboard:
             return 3
 
     @staticmethod
-    def with_piece(to, shape: int):
-        return Bitboard(PIECE_SHAPES[shape] << to)
+    def with_piece(destination, shape: int):
+        return Bitboard(PIECE_SHAPES[shape] << destination)
 
     @staticmethod
     def from_parts(a: int, b: int, c: int, d: int):
