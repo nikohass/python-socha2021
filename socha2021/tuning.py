@@ -26,7 +26,6 @@ class Tuning:
         self.model.fit(X, Y, epochs=epochs)
 
     def print_weights(self):
-        print("Weights:")
         weights = self.model.get_weights()
         for w in weights:
             if len(w.shape) == 1:
@@ -48,7 +47,6 @@ def load_dataset(path):
     with open(path, "r") as dataset_file:
         for i, line in enumerate(dataset_file):
             print(i)
-            #if i > 2000: break
             try:
                 for x, y in line_to_examples(line):
                     X.append(x)
@@ -136,6 +134,6 @@ def line_to_examples(line):
 
 X, Y = load_dataset("datasets/dataset_0.txt")
 print(X.shape, Y.shape)
-nn = Tuning()
-nn.train(X, Y, 10)
-nn.print_weights()
+t = Tuning()
+t.train(X, Y, 20)
+t.print_weights()

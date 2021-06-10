@@ -58,7 +58,6 @@ def to_example(line):
     #    return None, None
     y /= max_value
     """
-
     empty = n == 0
     not_empty = n != 0
     if not any(not_empty):
@@ -88,16 +87,21 @@ def load_datasets(datasets, limit=None):
     for dataset_path in datasets:
         with open(dataset_path, "r") as file:
             for line in file:
-                x, y = to_example(line)
-                if x is None:
-                    continue
-                X.append(x)
-                Y.append(y)
-                i += 1
-                if i % 500 == 0:
-                    print(i)
-                if limit != None and i > limit:
+                try:
+                    x, y = to_example(line)
+                    if x is None:
+                        continue
+                    X.append(x)
+                    Y.append(y)
+                    i += 1
+                    if i % 500 == 0:
+                        print(i)
+                    if limit != None and i > limit:
+                        break
+                except KeyboardInterrupt:
                     break
+                except Exception as e:
+                    print(e, line)
     return np.array(X), np.array(Y)
 
 class Rotation:

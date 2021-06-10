@@ -19,7 +19,7 @@ while True:
         else:
             state.do_action(choice(state.get_possible_actions()))
         print(state)
-        input()
+        #input()
     #result = state.game_result()
     played_games += 1
     sum_results += (state.board[0] | state.board[2]).count_ones()
